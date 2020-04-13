@@ -29,7 +29,7 @@ metadata:
   labels:
     app: nextcloud
   #annotations:
-    #volume.beta.kubernetes.io/storage-class: "storage-ssd"
+    #volume.beta.kubernetes.io/storage-class: "mystorage"
 spec:
   accessModes:
     - ReadWriteMany
@@ -117,7 +117,7 @@ spec:
   maxReplicas: 3
   targetCPUUtilizationPercentage: 50
 
-################## Everything below this line requires a functional Traefik deployment ##################
+################## Everything below this line requires a functional Traefik 2.2 deployment ##################
 
 # Nextcloud Ingress.
 ---
@@ -130,7 +130,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-  - match: Host(`cloud.wobker.co`)
+  - match: Host(`nextcloud.local`)
     kind: Rule
     middlewares:
     - name: nextcloud-redirect
