@@ -1,0 +1,74 @@
+# sample Ingress.
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sample-ingress
+  namespace: sample
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`sample-service.com`)
+    kind: Rule
+    middlewares:
+    - name: sample-redirect
+      namespace: sample
+    - name: sample-headers
+      namespace: sample
+    services:
+    - name: sample
+      port: 80
+  tls:
+    certResolver: myresolver
+    options:
+      name: sample-tlsoptions
+      namespace: sample
+
+# Traefik TLS Options.
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: TLSOption
+metadata:
+  name: sample-tlsoptions
+  namespace: sample
+spec:
+  minVersion: VersionTLS12                      
+  cipherSuites:                                 
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+    - TLS_AES_128_GCM_SHA256
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+  sniStrict: true
+
+# Traefik redirect to https
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: sample-redirect
+  namespace: sample
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+
+# Traefik modified Headers.
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: sample-headers
+  namespace: sample
+spec:
+  headers:
+    browserXssFilter: "true"
+    contentTypeNoSniff: "true"
+    forceSTSHeader: "true"
+    frameDeny: "true"
+    stsIncludeSubdomains: "true"
+    stsPreload: "true"
+    stsSeconds: 315360000
+    customFrameOptionsValue: SAMEORIGIN
