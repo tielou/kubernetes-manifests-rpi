@@ -14,6 +14,7 @@ data:
   NEXTCLOUD_UPLOAD_MAX_FILESIZE: 20G
   NEXTCLOUD_MAX_FILE_UPLOADS: "20"
   NEXTCLOUD_DATA_DIR: /opt/nextcloud
+  NEXTCLOUD_TRUSTED_DOMAINS: nextcloud.local
   MYSQL_DATABASE: nextcloud
   MYSQL_HOST: mysql.nextcloud.svc.cluster.local
   MYSQL_PASSWORD: nextcloud
@@ -35,7 +36,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: 10G
+      storage: 20Gi
 
 # Nextcloud Deployment
 ---
@@ -137,6 +138,8 @@ spec:
       namespace: nextcloud
     - name: nextcloud-headers
       namespace: nextcloud
+    - name: nextcloud-regex
+      namespace: nextcloud
     services:
     - name: nextcloud
       port: 80
@@ -175,6 +178,18 @@ spec:
   redirectScheme:
     scheme: https
     permanent: true
+
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: nextcloud-regex
+  namespace: nextcloud
+spec:
+  redirectRegex:
+    permanent: true
+    regex: "https://(.*)/.well-known/(card|cal)dav"
+    replacement: "https://${1}/remote.php/dav/"
+    
 
 # Traefik modified Headers.
 ---

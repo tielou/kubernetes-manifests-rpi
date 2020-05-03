@@ -1,0 +1,151 @@
+# ghost volume clain
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: ghost-files
+  namespace: ghost
+  labels:
+    app: ghost
+  #annotations:
+  #  volume.beta.kubernetes.io/storage-class: "storage-ssd"
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5G
+
+# ghost deployment definition
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+  namespace: ghost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+  template:
+    metadata:
+      name: ghost
+      labels:
+        app: ghost
+    spec:
+      containers:
+      - name: ghost
+        image: ghost:latest
+        ports:
+        - name: ghost
+          containerPort: 2368
+        resources:
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+          requests: 
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+          - name: url
+            value: http://blog.local
+        volumeMounts:
+          - mountPath: /var/lib/ghost/content
+            name: ghost-storage
+      volumes:
+        - name: ghost-storage
+          persistentVolumeClaim:
+            claimName: ghost-files
+
+# ghost Service definition.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+  namespace: ghost
+  labels:
+    app: ghost
+spec:
+  ports:
+    - port: 2368
+  selector:
+    app: ghost
+  type: NodePort
+
+# Traefik IngressRoute
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ghost-ingress
+  namespace: ghost
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`blog.local`)
+    kind: Rule
+    middlewares:
+    - name: ghost-redirect
+      namespace: ghost
+    - name: ghost-headers
+      namespace: ghost
+    services:
+    - name: ghost
+      port: 2368
+  tls:
+    certResolver: myresolver
+    options:
+      name: mintls12
+      namespace: ghost
+
+# Traefik TLS Options.
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: TLSOption
+metadata:
+  name: mintls12
+  namespace: ghost
+spec:
+  minVersion: VersionTLS12                      
+  cipherSuites:                                 
+    - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+    - TLS_AES_128_GCM_SHA256
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+  sniStrict: true
+
+# Traefik redirect to https
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ghost-redirect
+  namespace: ghost
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+
+# Traefik modified Headers.
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ghost-headers
+  namespace: ghost
+spec:
+  headers:
+    browserXssFilter: "true"
+    contentTypeNoSniff: "true"
+    forceSTSHeader: "true"
+    frameDeny: "true"
+    stsIncludeSubdomains: "true"
+    stsPreload: "true"
+    stsSeconds: 315360000
+    customFrameOptionsValue: SAMEORIGIN
+
